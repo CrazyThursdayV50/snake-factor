@@ -1,6 +1,7 @@
 package ec5_15
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/CrazyThursdayV50/indicators/indicators/ema"
@@ -22,12 +23,16 @@ type Factor struct {
 	currentEMA5  decimal.Decimal
 	currentEMA15 decimal.Decimal
 
-	// 当前 k 线数据出现 金叉信号
+	// 当前 k 线数据出现 金叉 信号
 	isCurrentGoldenX bool
-	// 前一次 k 线数据出现 金叉信号
+	// 前一次 k 线数据出现 金叉 信号
 	isPreviousGoldenX bool
 	// 金叉强度
-	goldenXPower decimal.NullDecimal
+	xGoldenPower decimal.NullDecimal
+
+	isCurrentDeadX  bool
+	isPreviousDeadX bool
+	xDeadPower      decimal.NullDecimal
 
 	currentKline *Kline
 	klinePower   decimal.NullDecimal
@@ -47,59 +52,70 @@ func (f *Factor) SetXWeight(weight decimal.Decimal) *Factor {
 	return f
 }
 
-// 金叉强度
+// 金叉/死叉 强度
 // speed = diff_current / (diff_current + diff_previous)
 // diff_current = (ema5 - ema15)current
 // diff_previous = (ema15 - ema5)previous
 // 范围：(0,1)
 // 越靠近1，越强，中间值：0.5
-func (f *Factor) calculateGoldenXPower() decimal.Decimal {
+func (f *Factor) calculateXPower() decimal.Decimal {
+	// 金叉时，以下这两个值不会小于0
+	// 死叉时，以下这两个值不会大于0
 	diffPre := f.previousEMA15.Sub(f.previousEMA5)
 	diffCur := f.currentEMA5.Sub(f.currentEMA15)
-	return diffCur.Div(diffCur.Add(diffPre))
+	fmt.Printf("pre: %s, cur: %s", diffPre.String(), diffCur.String())
+	if diffCur.IsZero() {
+		return decimal.Zero
+	}
+
+	if diffCur.Cmp(decimal.Zero) > 0 {
+		return diffCur.Div(diffCur.Add(diffPre))
+	}
+
+	return decimal.Zero.Sub(diffPre.Div(diffCur.Add(diffPre)))
 }
 
 // 使用当前 ema 指标计算是否金叉信号，输出值
-func (f *Factor) calcualteCurrentGoldenX() {
-	// 如果是 金叉
-	if f.previousEMA15.GreaterThan(f.previousEMA5) && f.currentEMA5.GreaterThan(f.currentEMA15) {
-		f.isCurrentGoldenX = true
-		f.goldenXPower.Decimal = f.calculateGoldenXPower()
-		f.goldenXPower.Valid = true
+func (f *Factor) calcualteCurrentX() {
+	// 如果上一次不是金叉，那么继续看是否满足本次金叉条件
+	if f.isPreviousGoldenX {
+		f.isCurrentGoldenX = false
+		f.xGoldenPower.Valid = false
+		f.xGoldenPower.Decimal = decimal.Zero
 	}
+
+	if f.isPreviousDeadX {
+		f.isCurrentDeadX = false
+		f.xDeadPower.Valid = false
+		f.xDeadPower.Decimal = decimal.Zero
+	}
+
+	// 如果满足金叉条件
+	if !f.isPreviousGoldenX && f.previousEMA15.GreaterThan(f.previousEMA5) && f.currentEMA5.GreaterThan(f.currentEMA15) {
+		f.isCurrentGoldenX = true
+		f.xGoldenPower.Decimal = f.calculateXPower()
+		f.xGoldenPower.Valid = true
+	}
+
+	// 如果满足死叉条件
+	if !f.isPreviousDeadX && f.previousEMA5.GreaterThan(f.previousEMA15) && f.currentEMA15.GreaterThan(f.currentEMA5) {
+		f.isCurrentDeadX = true
+		f.xDeadPower.Decimal = f.calculateXPower()
+		f.xDeadPower.Valid = true
+	}
+
 }
 
-func (f *Factor) updateGoldenX(isNextKline bool) {
+func (f *Factor) updateX(isNextKline bool) {
 	// 如果输入的是新时段的k线
 	// 此时 Factor 里面的数据还是基于当前k线与前一次k线计算出来的指标
 	if isNextKline {
 		f.isPreviousGoldenX = f.isCurrentGoldenX
-
-		// 如果当前是金叉
-		if f.isCurrentGoldenX {
-			// 更新成：上一次是金叉，本次不是金叉
-			// 因为不可能连续产生两个金叉
-			f.isCurrentGoldenX = false
-			f.goldenXPower.Decimal = decimal.Zero
-			f.goldenXPower.Valid = false
-			return
-		}
-
-		// 如果当前不是金叉，那么计算金叉
-		f.calcualteCurrentGoldenX()
-		return
+		f.isPreviousDeadX = f.isCurrentDeadX
 	}
 
-	// 如果输入的是当前时段k线
-	// 那么只需要重新计算即可
-	// 如果当前已经是金叉了，那么只更新金叉强度
-	if f.isCurrentGoldenX {
-		f.goldenXPower.Decimal = f.calculateGoldenXPower()
-		return
-	}
-
-	// 否则，计算是否金叉
-	f.calcualteCurrentGoldenX()
+	// 计算当前k线数据
+	f.calcualteCurrentX()
 }
 
 func (f *Factor) updateValues() {
@@ -109,8 +125,8 @@ func (f *Factor) updateValues() {
 	f.currentEMA15 = f.ema15.CurrentValue()
 }
 
-// k线收阳指标
-// (0,1)
+// k线收阳/阴指标
+// (0,1)/(-1,0)
 // 越靠近1，收阳越强
 // 上涨 1% -> 0.009901
 // 上涨 2% -> 0.01961
@@ -123,11 +139,24 @@ func (f *Factor) updateValues() {
 // 上涨 200% -> 0.66
 // 上涨 300% -> 0.75
 func (f *Factor) updateKlinePower() {
-	f.klinePower.Valid = f.currentKline.Close.GreaterThan(f.currentKline.Open)
-	if f.klinePower.Valid {
-		f.klinePower.Decimal = f.currentKline.Close.Sub(f.currentKline.Open).Div(f.currentKline.Close)
-	} else if !f.klinePower.Decimal.IsZero() {
-		f.klinePower.Decimal = decimal.Zero
+	switch {
+	// 上一K线出现金叉信号
+	case f.isPreviousGoldenX:
+		f.klinePower.Valid = f.currentKline.Close.GreaterThan(f.currentKline.Open)
+		if f.klinePower.Valid {
+			f.klinePower.Decimal = f.currentKline.Close.Sub(f.currentKline.Open).Div(f.currentKline.Close)
+		} else if !f.klinePower.Decimal.IsZero() {
+			f.klinePower.Decimal = decimal.Zero
+		}
+
+	// 上一K线出现死叉信号
+	case f.isPreviousDeadX:
+		f.klinePower.Valid = f.currentKline.Open.GreaterThan(f.currentKline.Close)
+		if f.klinePower.Valid {
+			f.klinePower.Decimal = f.currentKline.Close.Sub(f.currentKline.Open).Div(f.currentKline.Open)
+		} else if !f.klinePower.Decimal.IsZero() {
+			f.klinePower.Decimal = decimal.Zero
+		}
 	}
 }
 
@@ -159,7 +188,7 @@ func (f *Factor) initWithKlines(klines []*Kline) bool {
 	f.ema15 = ema15
 	f.currentKline = klines[len(klines)-1]
 	f.updateValues()
-	f.updateGoldenX(true)
+	f.updateX(true)
 	return true
 }
 
@@ -169,7 +198,8 @@ func (f *Factor) Next(kline *Kline) bool {
 	f.ema15, ok = f.ema15.Next(kline)
 	f.currentKline = kline
 	f.updateValues()
-	f.updateGoldenX(ok)
+	f.updateX(ok)
+	f.updateKlinePower()
 	return ok
 }
 
@@ -189,9 +219,34 @@ func New(klines []*Kline) *Factor {
 // 1. 当前收阳
 // 2. 已经突破金叉，也即前一次为金叉
 func (f *Factor) Value() decimal.Decimal {
-	if f.goldenXPower.Valid && f.klinePower.Valid {
-		return f.xWeight.Mul(f.goldenXPower.Decimal).Add(f.kWeight.Mul(f.klinePower.Decimal))
+	if f.xGoldenPower.Valid && f.klinePower.Valid {
+		return f.xWeight.Mul(f.xGoldenPower.Decimal).Add(f.kWeight.Mul(f.klinePower.Decimal))
+	}
+
+	if f.xDeadPower.Valid && f.klinePower.Valid {
+		return f.xWeight.Mul(f.xDeadPower.Decimal).Add(f.kWeight.Mul(f.klinePower.Decimal))
 	}
 
 	return decimal.Zero
+}
+
+func (f *Factor) Watch(ch <-chan *Kline) <-chan decimal.Decimal {
+	// valueUpdate: 当前k线数据更新产生的信号
+	// valueNext：新的k线数据进来产生的信号
+	var valueChan = make(chan decimal.Decimal)
+
+	go func() {
+		defer close(valueChan)
+		for k := range ch {
+			// 只有当 kline 为新的 kline 时，才将上一条k线的最终结果输出
+			_, ok := f.ema5.Next(k)
+			if ok {
+				valueChan <- f.Value()
+			}
+
+			_ = f.Next(k)
+		}
+	}()
+
+	return valueChan
 }
