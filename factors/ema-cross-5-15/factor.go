@@ -1,7 +1,6 @@
 package ec5_15
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/CrazyThursdayV50/indicators/indicators/ema"

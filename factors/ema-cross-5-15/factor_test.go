@@ -47,7 +47,7 @@ func TestFactor_calcualteCurrentX(t *testing.T) {
 			currentEMA5:   decimal.NewFromInt(101),
 			currentEMA15:  decimal.NewFromInt(100),
 		}
-		f.calcualteCurrentX()
+		f.calculateCurrentX()
 		assert.True(t, f.isCurrentGoldenX)
 		assert.False(t, f.isCurrentDeadX)
 		assert.True(t, f.xGoldenPower.Valid)
@@ -60,7 +60,7 @@ func TestFactor_calcualteCurrentX(t *testing.T) {
 			currentEMA5:   decimal.NewFromInt(100),
 			currentEMA15:  decimal.NewFromInt(101),
 		}
-		f.calcualteCurrentX()
+		f.calculateCurrentX()
 		assert.False(t, f.isCurrentGoldenX)
 		assert.True(t, f.isCurrentDeadX)
 		assert.True(t, f.xDeadPower.Valid)
@@ -74,7 +74,7 @@ func TestFactor_calcualteCurrentX(t *testing.T) {
 			currentEMA5:       decimal.NewFromInt(102),
 			currentEMA15:      decimal.NewFromInt(101),
 		}
-		f.calcualteCurrentX()
+		f.calculateCurrentX()
 		assert.False(t, f.isCurrentGoldenX, "Should not signal a new golden cross if already in one")
 	})
 }
