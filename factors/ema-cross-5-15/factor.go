@@ -63,7 +63,6 @@ func (f *Factor) calculateXPower() decimal.Decimal {
 	// 死叉时，以下这两个值不会大于0
 	diffPre := f.previousEMA15.Sub(f.previousEMA5)
 	diffCur := f.currentEMA5.Sub(f.currentEMA15)
-	fmt.Printf("pre: %s, cur: %s", diffPre.String(), diffCur.String())
 	if diffCur.IsZero() {
 		return decimal.Zero
 	}
@@ -76,7 +75,7 @@ func (f *Factor) calculateXPower() decimal.Decimal {
 }
 
 // 使用当前 ema 指标计算是否金叉信号，输出值
-func (f *Factor) calcualteCurrentX() {
+func (f *Factor) calculateCurrentX() {
 	// 如果上一次不是金叉，那么继续看是否满足本次金叉条件
 	if f.isPreviousGoldenX {
 		f.isCurrentGoldenX = false
@@ -115,7 +114,7 @@ func (f *Factor) updateX(isNextKline bool) {
 	}
 
 	// 计算当前k线数据
-	f.calcualteCurrentX()
+	f.calculateCurrentX()
 }
 
 func (f *Factor) updateValues() {
