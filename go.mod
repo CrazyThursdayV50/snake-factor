@@ -3,7 +3,7 @@ module github.com/CrazyThursdayV50/snake-factor
 go 1.24.4
 
 require (
-	github.com/CrazyThursdayV50/indicators v0.0.0-20251009070553-9de896311de4
+	github.com/CrazyThursdayV50/indicators v0.0.0-20251015033445-6e1fb34b374f
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
 )

@@ -2,6 +2,8 @@ github.com/CrazyThursdayV50/indicators v0.0.0-20250914101119-366ba1ed319f h1:QmE
 github.com/CrazyThursdayV50/indicators v0.0.0-20250914101119-366ba1ed319f/go.mod h1:uSBtyKdoVATjwwmrS9vfycdFAx12Y4GXQNjEuEmT9Ew=
 github.com/CrazyThursdayV50/indicators v0.0.0-20251009070553-9de896311de4 h1:X6ewniSmtMfCHGGWk3c1+NM/HJCpysHUp7+Gqr4G5EY=
 github.com/CrazyThursdayV50/indicators v0.0.0-20251009070553-9de896311de4/go.mod h1:iHAa16GEu8+k45q4efIsP16/198rLchLjjMTZqK/B/k=
+github.com/CrazyThursdayV50/indicators v0.0.0-20251015033445-6e1fb34b374f h1:niBd7fAUBmQXTDl83jMiEryx309MtsajgXDDcQPQZOQ=
+github.com/CrazyThursdayV50/indicators v0.0.0-20251015033445-6e1fb34b374f/go.mod h1:iHAa16GEu8+k45q4efIsP16/198rLchLjjMTZqK/B/k=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
